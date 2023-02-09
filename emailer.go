@@ -1,58 +1,22 @@
-// Copyright 2020 NGR Softlab
+// Copyright 2020-2023 NGR Softlab
 //
 package emailer
 
 import (
 	"bytes"
 	"encoding/base64"
-	"errors"
 	"fmt"
-	"github.com/NGRsoftlab/ngr-logging"
 	"mime/multipart"
 	"net/smtp"
 	"strings"
 	"time"
+
+	"github.com/NGRsoftlab/ngr-logging"
 )
-
-// Struct for auth.
-type loginAuth struct {
-	username, password string
-}
-
-// Struct for attachments.
-type AttachData struct {
-	FileName string
-	FileData []byte
-}
-
-// Auth with login and password.
-func LoginAuth(username, password string) smtp.Auth {
-	return &loginAuth{username, password}
-}
-
-// Login auth start.
-func (a *loginAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
-	return "LOGIN", []byte{}, nil
-}
-
-// Next loginAuth.
-func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
-	if more {
-		switch string(fromServer) {
-		case "Username:":
-			return []byte(a.username), nil
-		case "Password:":
-			return []byte(a.password), nil
-		default:
-			return nil, errors.New("Unknown fromServer")
-		}
-	}
-	return nil, nil
-}
 
 /////////////////////////////////////////////
 
-// Struct - sender for sending smtp packs.
+// Sender struct - sender for sending smtp packs
 type Sender struct {
 	Login      string       // user login
 	Email      string       // user email address
@@ -63,7 +27,19 @@ type Sender struct {
 	to         []string     // receivers of email
 }
 
-// Send smtp pack (mail).
+// NewSender creating new *Sender obj
+func NewSender(login, password, email, server string) *Sender {
+	auth := Sender{
+		Login:      login,
+		Email:      email,
+		Password:   password,
+		ServerSMTP: server}
+	return &auth
+}
+
+/////////////////////////////////////////////
+
+// Send send smtp pack (mail)
 func (s *Sender) Send() error {
 	err := smtp.SendMail(s.ServerSMTP,
 		LoginAuth(s.Login, s.Password),
@@ -78,21 +54,11 @@ func (s *Sender) Send() error {
 
 /////////////////////////////////////////////
 
-// Creating new *Sender obj.
-func NewSender(login, password, email, server string) *Sender {
-	auth := Sender{
-		Login:      login,
-		Email:      email,
-		Password:   password,
-		ServerSMTP: server}
-	return &auth
-}
+// NewMessage creating new email message
+func (s *Sender) NewMessage(params *MessageParams) error {
+	logging.Logger.Infof("files: %d", len(params.Files))
 
-// Creating new email message.
-func (s *Sender) NewMessage(subject string, to []string, body string, files []AttachData) error {
-	logging.Logger.Info("files: ", len(files))
-
-	attachments, err := attachFile(files)
+	attachments, err := attachFile(params.Files)
 	if err != nil {
 		logging.Logger.Error(err)
 		return err
@@ -101,8 +67,8 @@ func (s *Sender) NewMessage(subject string, to []string, body string, files []At
 	withAttachments := len(attachments) > 0
 	var headers = make(map[string]string)
 	headers["From"] = s.Email
-	headers["To"] = strings.Join(to, ";")
-	headers["Subject"] = subject
+	headers["To"] = strings.Join(params.Recipients, ";")
+	headers["Subject"] = params.Topic
 	headers["MIME-Version"] = "1.0"
 	headers["Date"] = time.Now().Format(time.RFC1123Z)
 	var buf = bytes.NewBuffer(nil)
@@ -114,18 +80,18 @@ func (s *Sender) NewMessage(subject string, to []string, body string, files []At
 	}
 
 	if withAttachments {
-		buf.WriteString(fmt.Sprintf(`Content-Type: multipart/mixed; boundary="%s"`, boundary))
+		buf.WriteString(fmt.Sprintf(`Content-Type: %s; boundary="%s"`, MultipartMixedContentType, boundary))
 		buf.WriteString("\r\n\r\n")
 		buf.WriteString(fmt.Sprintf("--%s\r\n", boundary))
 	}
-	buf.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
+	buf.WriteString(fmt.Sprintf("Content-Type: %s; charset=%s\r\n", params.ContentType, params.Charset))
 	buf.WriteString("MIME-Version: 1.0\r\n")
-	buf.WriteString("\r\n" + body)
+	buf.WriteString("\r\n" + params.Body)
 	if withAttachments {
 		for k, v := range attachments {
 			buf.WriteString(fmt.Sprintf("\r\n--%s\r\n", boundary))
-			buf.WriteString("Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n")
-			buf.WriteString("Content-Transfer-Encoding: base64\r\n")
+			buf.WriteString(fmt.Sprintf("Content-Type: %s\r\n", VndSheetContentType))
+			buf.WriteString(fmt.Sprintf("Content-Transfer-Encoding: %s\r\n", Base64Charset))
 			buf.WriteString("MIME-Version: 1.0\r\n")
 			buf.WriteString(fmt.Sprintf(`Content-Disposition: attachment; filename="%s"`, k))
 			buf.WriteString("\r\n\r\n")
@@ -136,17 +102,8 @@ func (s *Sender) NewMessage(subject string, to []string, body string, files []At
 		}
 		buf.WriteString("--")
 	}
-	s.to = to
+	s.to = params.Recipients
 	s.message = buf.Bytes()
 
 	return nil
-}
-
-// Attaching file to mail. Returns attachments map: "filename": filedata.
-func attachFile(files []AttachData) (map[string][]byte, error) {
-	var attachments = make(map[string][]byte)
-	for _, f := range files {
-		attachments[f.FileName] = f.FileData
-	}
-	return attachments, nil
 }

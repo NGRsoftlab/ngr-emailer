@@ -13,10 +13,18 @@ s := NewSender(
 		fmt.Sprintf("%v:%v", "test.com", "587"),
 	)
 
-	err := s.NewMessage("topic", []string{"user@mail.com"}, "test", []AttachData{{
-		fileName: "test.txt",
-		fileData: []byte("test"),
-	}})
+		err := s.NewMessage(
+		&MessageParams{
+			Topic:       "topic",
+			ContentType: HtmlContentType,
+			Charset:     Utf8Charset,
+			Recipients:  []string{"user@test.ru"},
+			Body:        body,
+			Files: []AttachData{{
+				FileName: "test.txt",
+				FileData: []byte("test"),
+			}},
+		})
 	if err != nil {
 		log.Fatal(err)
 	}
