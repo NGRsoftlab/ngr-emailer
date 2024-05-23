@@ -1,5 +1,5 @@
 # emailer
-Tiny lib for email (with attachments) sending (smtp)
+Tiny lib for email (with attachments) sending (smtp, only login auth is supported now)
 
 # import
 ```import "github.com/NGRsoftlab/ngr-emailer"```
