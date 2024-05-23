@@ -1,5 +1,4 @@
-// Copyright 2020-2023 NGR Softlab
-//
+// Copyright 2020-2024 NGR Softlab
 package emailer
 
 import (
@@ -39,14 +38,27 @@ func NewSender(login, password, email, server string) *Sender {
 
 /////////////////////////////////////////////
 
-// Send send smtp pack (mail)
+// Send send smtp pack (mail) with login auth
 func (s *Sender) Send() error {
 	err := smtp.SendMail(s.ServerSMTP,
 		LoginAuth(s.Login, s.Password),
 		s.Login, s.to, s.message)
 
 	if err != nil {
-		logging.Logger.Error("SEND ERROR: ", err)
+		logging.Logger.Errorf("send error: %s", err.Error())
+		return err
+	}
+	return nil
+}
+
+// SendWithAuth send smtp pack (mail) with custom auth
+func (s *Sender) SendWithAuth(auth smtp.Auth) error {
+	err := smtp.SendMail(s.ServerSMTP,
+		auth,
+		s.Login, s.to, s.message)
+
+	if err != nil {
+		logging.Logger.Errorf("send error: %s", err.Error())
 		return err
 	}
 	return nil

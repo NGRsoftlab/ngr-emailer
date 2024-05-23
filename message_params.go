@@ -1,5 +1,4 @@
 // Copyright 2020-2023 NGR Softlab
-//
 package emailer
 
 type MessageParams struct {
