@@ -4,9 +4,10 @@ package emailer
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewMessage(t *testing.T) {

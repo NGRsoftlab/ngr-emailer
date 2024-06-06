@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	logging "github.com/NGRsoftlab/ngr-logging"
 	"net/smtp"
 	"time"
 )
@@ -56,13 +55,13 @@ func TestLoginAuth(
 	}
 	defer func() {
 		if errClose := c.Close(); errClose != nil {
-			logging.Logger.Errorf("smtp conn close error: %s", errClose.Error())
+			logger.Errorf("smtp conn close error: %s", errClose.Error())
 		}
 	}()
 
 	if tlsOn {
 		if connError = c.StartTLS(tlsConfig); connError != nil {
-			logging.Logger.Errorf("start tsl error: %s", connError.Error())
+			logger.Errorf("start tsl error: %s", connError.Error())
 			return connError, nil
 		}
 	}
@@ -75,7 +74,7 @@ func TestLoginAuth(
 		defer cancel()
 
 		if authError = c.Auth(LoginAuth(user, password)); authError != nil {
-			logging.Logger.Errorf("auth error: %s", authError.Error())
+			logger.Errorf("auth error: %s", authError.Error())
 		}
 	}(ctx)
 
@@ -83,15 +82,15 @@ func TestLoginAuth(
 	case <-ctx.Done():
 		switch ctx.Err() {
 		case context.DeadlineExceeded:
-			logging.Logger.Error("smtp auth conn deadline")
+			logger.Error("smtp auth conn deadline")
 			authError = errors.New("auth conn deadline is over")
 		case context.Canceled:
-			logging.Logger.Info("smtp auth conn cancel by timeout")
+			logger.Info("smtp auth conn cancel by timeout")
 		}
 	}
 
 	if authError != nil {
-		logging.Logger.Errorf("smtp auth conn test error: %s", authError.Error())
+		logger.Errorf("smtp auth conn test error: %s", authError.Error())
 	}
 
 	return connError, authError

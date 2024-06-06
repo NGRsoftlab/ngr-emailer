@@ -9,8 +9,6 @@ import (
 	"net/smtp"
 	"strings"
 	"time"
-
-	"github.com/NGRsoftlab/ngr-logging"
 )
 
 /////////////////////////////////////////////
@@ -45,7 +43,7 @@ func (s *Sender) Send() error {
 		s.Login, s.to, s.message)
 
 	if err != nil {
-		logging.Logger.Errorf("send error: %s", err.Error())
+		logger.Errorf("send error: %s", err.Error())
 		return err
 	}
 	return nil
@@ -58,7 +56,7 @@ func (s *Sender) SendWithAuth(auth smtp.Auth) error {
 		s.Login, s.to, s.message)
 
 	if err != nil {
-		logging.Logger.Errorf("send error: %s", err.Error())
+		logger.Errorf("send error: %s", err.Error())
 		return err
 	}
 	return nil
@@ -68,11 +66,11 @@ func (s *Sender) SendWithAuth(auth smtp.Auth) error {
 
 // NewMessage creating new email message
 func (s *Sender) NewMessage(params *MessageParams) error {
-	logging.Logger.Infof("files: %d", len(params.Files))
+	logger.Infof("files: %d", len(params.Files))
 
 	attachments, err := attachFile(params.Files)
 	if err != nil {
-		logging.Logger.Error(err)
+		logger.Error(err)
 		return err
 	}
 
