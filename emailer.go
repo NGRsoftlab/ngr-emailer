@@ -40,7 +40,7 @@ func NewSender(login, password, email, server string) *Sender {
 func (s *Sender) Send() error {
 	err := smtp.SendMail(s.ServerSMTP,
 		LoginAuth(s.Login, s.Password),
-		s.Login, s.to, s.message)
+		s.Email, s.to, s.message)
 
 	if err != nil {
 		logger.Errorf("send error: %s", err.Error())
@@ -53,7 +53,7 @@ func (s *Sender) Send() error {
 func (s *Sender) SendWithAuth(auth smtp.Auth) error {
 	err := smtp.SendMail(s.ServerSMTP,
 		auth,
-		s.Login, s.to, s.message)
+		s.Email, s.to, s.message)
 
 	if err != nil {
 		logger.Errorf("send error: %s", err.Error())
