@@ -3,7 +3,9 @@ package emailer
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"mime/multipart"
 	"net/smtp"
@@ -15,13 +17,18 @@ import (
 
 // Sender struct - sender for sending smtp packs
 type Sender struct {
-	Login      string       // user login
-	Email      string       // user email address
-	Password   string       // user password
-	ServerSMTP string       // smtp server string
-	client     *smtp.Client // smtp client pointer
-	message    []byte       // message text
-	to         []string     // receivers of email
+	Auth   smtp.Auth
+	tlsCfg *tls.Config
+
+	Login    string // user login
+	Password string // user password
+
+	ServerSMTP string // smtp server string (full)
+	ServerAddr string // smtp server addr string
+
+	Email   string   // user email address (from)
+	to      []string // receivers of email (to)
+	message []byte   // message text
 }
 
 // NewSender creating new *Sender obj
@@ -34,7 +41,82 @@ func NewSender(login, password, email, server string) *Sender {
 	return &auth
 }
 
+// NewTLSSender creating new *Sender obj
+func NewTLSSender(auth smtp.Auth, tlsCfg *tls.Config, email, hostAddress, fullServerAddress string) (*Sender, error) {
+	sender := Sender{
+		Auth:       auth,
+		tlsCfg:     tlsCfg,
+		Email:      email,
+		ServerSMTP: fullServerAddress,
+		ServerAddr: hostAddress,
+	}
+
+	return &sender, nil
+}
+
 /////////////////////////////////////////////
+
+// SendViaClient send smtp pack (mail)
+func (s *Sender) SendViaClient() error {
+	if err := validateLine(s.Email); err != nil {
+		return err
+	}
+	for _, recp := range s.to {
+		if err := validateLine(recp); err != nil {
+			return err
+		}
+	}
+
+	conn, err := tls.Dial("tcp", s.ServerSMTP, s.tlsCfg)
+	if err != nil {
+		return err
+	}
+
+	client, err := smtp.NewClient(conn, s.ServerAddr)
+	if err != nil {
+		return err
+	}
+
+	defer client.Close()
+
+	if ok, _ := client.Extension("STARTTLS"); ok && s.tlsCfg != nil {
+		config := s.tlsCfg
+		if err = client.StartTLS(config); err != nil {
+			return err
+		}
+	}
+
+	if err = client.Auth(s.Auth); err != nil {
+		return err
+	}
+
+	if err = client.Mail(s.Email); err != nil {
+		return err
+	}
+
+	for _, addr := range s.to {
+		if err = client.Rcpt(addr); err != nil {
+			return err
+		}
+	}
+
+	w, err := client.Data()
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(s.message)
+	if err != nil {
+		return err
+	}
+
+	err = w.Close()
+	if err != nil {
+		return err
+	}
+
+	return client.Quit()
+}
 
 // Send send smtp pack (mail) with login auth
 func (s *Sender) Send() error {
@@ -115,5 +197,15 @@ func (s *Sender) NewMessage(params *MessageParams) error {
 	s.to = params.Recipients
 	s.message = buf.Bytes()
 
+	return nil
+}
+
+/////////////////////////////////////////////
+
+// validateLine checks to see if a line has CR or LF as per RFC 5321.
+func validateLine(line string) error {
+	if strings.ContainsAny(line, "\n\r") {
+		return errors.New("emailer: A line must not contain CR or LF")
+	}
 	return nil
 }
