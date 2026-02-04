@@ -67,12 +67,7 @@ func (s *Sender) SendViaClient() error {
 		}
 	}
 
-	conn, err := tls.Dial("tcp", s.ServerSMTP, s.tlsCfg)
-	if err != nil {
-		return err
-	}
-
-	client, err := smtp.NewClient(conn, s.ServerAddr)
+	client, err := smtp.Dial(s.ServerSMTP)
 	if err != nil {
 		return err
 	}
