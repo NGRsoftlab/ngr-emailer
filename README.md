@@ -1,3 +1,5 @@
+Tiny lib for email (with attachments) sending. DEPRECATED. Use https://github.com/NGRsoftlab/mailer instead
+
 # emailer
 Tiny lib for email (with attachments) sending (smtp, only login auth is supported now)
 
